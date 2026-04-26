@@ -17,7 +17,7 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   title: "Signature Living Studio | Luxury Interior Design in Dhaka",
   description: "Luxury Interior & Custom Furniture in Dhaka. Complete Home Interior & Turnkey Solutions.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://signaturelivingstudio.com"),
+  metadataBase: new URL("https://signaturelivingstudio.com"),
   openGraph: {
     title: "Signature Living Studio",
     description: "Tailored Luxury, Designed Around Your Lifestyle.",
