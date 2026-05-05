@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 export default function NotFound() {
   return (
     <html>
@@ -48,7 +50,7 @@ export default function NotFound() {
             The residence you are looking for does not exist or has been moved.
           </p>
 
-          <a href="/" style={{ 
+          <Link href="/" style={{ 
             marginTop: '3rem', 
             color: '#FDFBF7', 
             textDecoration: 'none',
@@ -61,7 +63,7 @@ export default function NotFound() {
             fontFamily: 'sans-serif'
           }}>
             Return Home
-          </a>
+          </Link>
         </div>
       </body>
     </html>

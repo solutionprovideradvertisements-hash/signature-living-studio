@@ -16,6 +16,16 @@
   --shadow-luxury: 0 40px 100px rgba(0, 0, 0, 0.8);
 }
 
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+.animate-shake {
+  animation: shake 133ms ease-in-out 3;
+}
+
 /* Brand Color Variables and Custom Properties */
 :root {
   --radius-xl: 12px;

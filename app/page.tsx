@@ -4,8 +4,16 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { ArrowRight, CheckCircle2, Home, Phone, ShieldCheck, Sparkles, Gem, Menu, X, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import { supabase } from "@/lib/supabase";
 import { BrandLogo } from "@/components/BrandLogo";
+import { sendLeadNotifications } from "@/app/actions/contact";
+import { usePopupStore } from '@/hooks/usePopupStore';
+import { Reveal } from '@/components/ui/Reveal';
+import { TestimonialsSection } from '@/components/testimonials/TestimonialsSection';
+import { PortfolioCarousel } from '@/components/portfolio/PortfolioCarousel';
 
 const services = [
   "Villa Interior Design",
@@ -47,31 +55,59 @@ const steps = [
   "Handover, Warranty & After-Sales Care"
 ];
 
+const contactSchema = z.object({
+  name: z.string().min(3, "Name must be at least 3 characters"),
+  phone: z.string().regex(/^(?:\+88|88)?01[3-9]\d{8}$/, "Must be a valid Bangladeshi phone number"),
+  project_type: z.string().min(1, "Please select a project type"),
+  budget_range: z.string().min(1, "Please select an investment tier"),
+  message: z.string().refine(val => !val || val.length >= 20, "Brief must be at least 20 characters").optional(),
+});
+
+type ContactFormData = z.infer<typeof contactSchema>;
+
 export default function HomePage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const openPopup = usePopupStore((state) => state.openPopup);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(contactSchema),
+    defaultValues: {
+      project_type: "Apartment Interior",
+      budget_range: "Premium",
+    }
+  });
+
+  const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
     setSubmitStatus('idle');
 
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      name: formData.get('name'),
-      phone: formData.get('phone'),
-      project_type: formData.get('project_type'),
-      budget_range: formData.get('budget_range'),
-      message: formData.get('message'),
+    const submissionData = {
+      ...data,
       created_at: new Date().toISOString(),
     };
 
     try {
-      const { error } = await supabase.from('enquiries').insert([data]);
+      const { error } = await supabase.from('enquiries').insert([submissionData]);
       if (error) throw error;
+      
+      // Attempt to send SMS securely via server action
+      try {
+        await sendLeadNotifications(data);
+      } catch (smsError) {
+        console.error('Non-blocking SMS error:', smsError);
+      }
+
       setSubmitStatus('success');
-      (e.target as HTMLFormElement).reset();
+      reset();
+      // Reset success status after 5 seconds
+      setTimeout(() => setSubmitStatus('idle'), 5000);
     } catch (error) {
       console.error('Error submitting form:', error);
       setSubmitStatus('error');
@@ -91,7 +127,7 @@ export default function HomePage() {
       <header id="header" className="sticky top-0 z-50 border-b border-[#C5A059]/10 bg-[#080808]/95 backdrop-blur-xl">
         <div className="container flex h-24 items-center justify-between">
           <Link href="/" className="hover:opacity-80 transition-opacity">
-            <BrandLogo mode="full" className="scale-75 origin-left" />
+            <BrandLogo mode="horizontal" className="h-[48px] w-auto scale-90 md:scale-100 origin-left" />
           </Link>
           
           <nav className="hidden items-center gap-10 text-[10px] uppercase tracking-[0.3em] text-white/50 xl:flex">
@@ -101,10 +137,10 @@ export default function HomePage() {
           </nav>
 
           <div className="flex items-center gap-4">
-            <a href="#contact" className="hidden border border-[#C5A059] bg-[#C5A059] text-[#050505] text-[9px] uppercase tracking-[0.2em] font-semibold py-2 px-6 hover:bg-[#E6D5B8] transition-colors md:flex flex-col items-center justify-center leading-tight">
+            <button onClick={() => openPopup('popup_navbar')} className="hidden border border-[#C5A059] bg-[#C5A059] text-[#050505] text-[9px] uppercase tracking-[0.2em] font-semibold py-2 px-6 hover:bg-[#E6D5B8] transition-colors md:flex flex-col items-center justify-center leading-tight">
               <span>BOOK</span>
               <span>CONSULTATION</span>
-            </a>
+            </button>
             <button 
               className="text-[#E6D5B8] ml-2 outline-none p-2 xl:hidden" 
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -131,7 +167,7 @@ export default function HomePage() {
                 {item}
               </a>
             ))}
-            <a href="#contact" className="btn-primary w-full mx-auto max-w-xs mt-4" onClick={() => setIsMenuOpen(false)}>Book Consultation</a>
+            <button className="btn-primary w-full mx-auto max-w-xs mt-4" onClick={() => { setIsMenuOpen(false); openPopup('popup_navbar'); }}>Book Consultation</button>
           </div>
         </motion.div>
       </header>
@@ -152,6 +188,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           >
+            <BrandLogo mode="stacked" className="h-[150px] w-[200px] mb-8" />
             <div className="mb-8 inline-flex items-center gap-4 px-6 p-4 border border-[#C5A059]/30 rounded-[30px] font-medium text-[8px] md:text-[9px] uppercase tracking-[0.3em] bg-[#12100E] text-[#E6D5B8]/80 backdrop-blur-sm max-w-xs shadow-xl">
               <span className="w-2 h-2 rounded-full bg-[#C5A059] shrink-0"></span>
               <span className="leading-[1.6]">EXCLUSIVE INTERIOR<br/>ARCHITECTURE</span>
@@ -166,7 +203,7 @@ export default function HomePage() {
             </p>
             <div className="mt-12 flex flex-col sm:flex-row gap-6">
               <a href="#portfolio" className="btn-primary">View Portfolio</a>
-              <a href="#contact" className="btn-secondary">Request Consultation</a>
+              <button onClick={() => openPopup('popup_hero')} className="btn-secondary">Request Consultation</button>
             </div>
           </motion.div>
           
@@ -181,7 +218,7 @@ export default function HomePage() {
               <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/luxuryhome/800/1000')] bg-cover bg-center mix-blend-overlay opacity-50 hover:scale-105 transition-transform duration-[2s]"></div>
               <div className="absolute inset-0 border-[1px] border-white/5 mx-4 my-4 rounded-[16px] pointer-events-none"></div>
               <div className="absolute bottom-10 inset-x-0 text-center z-20 px-8">
-                 <BrandLogo mode="monogram" className="opacity-80 scale-75 mb-6" />
+                 <BrandLogo mode="monogram" className="h-[100px] w-auto opacity-70 mb-4 mx-auto" />
                  <p className="text-[10px] uppercase tracking-[0.4em] text-[#E6D5B8]/80 font-medium">Signature Execution</p>
               </div>
             </div>
@@ -208,33 +245,23 @@ export default function HomePage() {
         <div className="container relative">
           <div className="absolute top-0 right-0 w-[400px] h-[400px] border border-[#C5A059]/10 rounded-full translate-x-1/2 -translate-y-1/2 opacity-20 pointer-events-none" />
           <div className="grid gap-16 lg:grid-cols-2 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1 }}
-            >
-              <div className="flex items-center gap-4 mb-8">
-                <span className="h-[1px] w-12 bg-[#C5A059]/50"></span>
-                <p className="text-[#C5A059] uppercase tracking-[0.4em] text-[10px] font-medium">Studio Philosophy</p>
-              </div>
-              <h2 className="font-display text-4xl md:text-5xl lg:text-7xl leading-[1.1] font-light text-[#FDFBF7]">
-                Design must <br/>
-                <span className="italic text-[#E6D5B8]">serve the life</span><br/>
-                lived within.
-              </h2>
-            </motion.div>
-            <motion.div 
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 1, delay: 0.2 }}
-            >
-              <p className="text-[14px] md:text-[16px] leading-relaxed text-white/60 max-w-lg font-light mb-8">
+          <Reveal>
+            <div className="flex items-center gap-4 mb-8">
+              <span className="h-[1px] w-12 bg-[#C5A059]/50"></span>
+              <p className="text-[#C5A059] uppercase tracking-[0.4em] text-[10px] font-medium">Studio Philosophy</p>
+            </div>
+            <h2 className="font-display text-4xl md:text-5xl lg:text-7xl leading-[1.1] font-light text-[#FDFBF7]">
+              Design must <br/>
+              <span className="italic text-[#E6D5B8]">serve the life</span><br/>
+              lived within.
+            </h2>
+          </Reveal>
+          <Reveal delay={200}>
+            <p className="text-[14px] md:text-[16px] leading-relaxed text-white/60 max-w-lg font-light mb-8">
                 We believe in tailored luxury. Our approach manages concept, fine materials, and custom furniture production through a unified, meticulous execution process. We prioritize timeless architectural integrity over fleeting aesthetic trends.
               </p>
               <BrandLogo mode="monogram" className="opacity-40 origin-left scale-75" />
-            </motion.div>
+            </Reveal>
           </div>
         </div>
       </section>
@@ -248,25 +275,22 @@ export default function HomePage() {
           </header>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {services.slice(0, 12).map((service, i) => (
-              <motion.div 
+              <Reveal 
                 key={service} 
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
+                delay={i * 80}
                 className="group relative rounded-none border border-[#C5A059]/10 bg-[#080808]/50 p-8 hover:bg-[#080808] hover:border-[#C5A059]/40 transition-all duration-500 overflow-hidden"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-[#C5A059]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <span className="block text-[#C5A059]/40 font-mono text-[10px] mb-6 group-hover:text-[#C5A059] transition-colors">{String(i + 1).padStart(2, '0')}</span>
                 <h3 className="font-medium text-[#FDFBF7] text-[14px] leading-snug tracking-wide group-hover:text-[#E6D5B8] transition-colors relative z-10">{service}</h3>
                 <div className="absolute bottom-0 left-0 h-[1px] w-0 bg-[#C5A059] group-hover:w-full transition-all duration-700 ease-out" />
-              </motion.div>
+              </Reveal>
             ))}
           </div>
           <div className="mt-12 text-center">
-            <a href="#contact" className="text-[10px] uppercase tracking-[0.3em] text-[#C5A059] hover:text-[#E6D5B8] transition-colors border-b border-[#C5A059]/30 hover:border-[#E6D5B8] pb-1 inline-block">
+            <button onClick={() => openPopup('popup_services')} className="text-[10px] uppercase tracking-[0.3em] text-[#C5A059] hover:text-[#E6D5B8] transition-colors border-b border-[#C5A059]/30 hover:border-[#E6D5B8] pb-1 inline-block">
               Request Full Service Outline
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -281,17 +305,15 @@ export default function HomePage() {
           </div>
           <div className="mt-16 grid gap-0 md:grid-cols-2 lg:grid-cols-7 border-y border-[#C5A059]/10 group">
             {steps.map((step, index) => (
-              <motion.div 
+              <Reveal 
                 key={step} 
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.8 }}
+                type="slide-left"
+                delay={index * 100}
                 className="relative p-8 flex flex-col items-center text-center hover:bg-[#12100E] transition-colors duration-500 border-b border-b-[#C5A059]/10 lg:border-b-0 lg:border-r lg:border-r-[#C5A059]/10 last:border-b-0 lg:last:border-r-0"
               >
                 <span className="text-[#C5A059]/50 font-display text-3xl mb-6 font-light transition-colors">{index + 1}</span>
                 <p className="text-[11px] text-[#E6D5B8]/80 font-medium uppercase tracking-wider leading-relaxed">{step}</p>
-              </motion.div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -308,38 +330,22 @@ export default function HomePage() {
               </div>
               <h2 className="font-display text-4xl md:text-5xl text-[#FDFBF7] font-light tracking-tight max-w-xl">Curated <span className="italic text-[#E6D5B8]">Masterpieces</span> <br className="hidden md:block"/> for Modern Living.</h2>
             </div>
-            <a href="#contact" className="btn-secondary w-fit shrink-0">View Full Portfolio</a>
+            <button onClick={() => openPopup('popup_portfolio')} className="btn-secondary w-fit shrink-0">View Full Portfolio</button>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              { title: "The Penthouse", category: "Residential Interior" },
-              { title: "Villa Noir", category: "Elite Architecture" },
-              { title: "Gold & Charcoal", category: "Custom Styling" }
+              { title: "The Penthouse", category: "Residential Interior", images: ['https://picsum.photos/seed/lux1/800/1000', 'https://picsum.photos/seed/lux1b/800/1000', 'https://picsum.photos/seed/lux1c/800/1000'] },
+              { title: "Villa Noir", category: "Elite Architecture", images: ['https://picsum.photos/seed/lux2/800/1000', 'https://picsum.photos/seed/lux2b/800/1000', 'https://picsum.photos/seed/lux2c/800/1000'] },
+              { title: "Gold & Charcoal", category: "Custom Styling", images: ['https://picsum.photos/seed/lux3/800/1000', 'https://picsum.photos/seed/lux3b/800/1000', 'https://picsum.photos/seed/lux3c/800/1000'] }
             ].map((item, i) => (
-              <motion.div 
-                key={item.title} 
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.15, duration: 1 }}
-                className="group relative aspect-[3/4] overflow-hidden border border-[#C5A059]/10 bg-[#080808]"
-              >
-                <div className="absolute inset-x-0 bottom-0 h-[60%] bg-gradient-to-t from-[#080808] via-[#080808]/50 to-transparent z-10 transition-all duration-700 group-hover:h-[70%]" />
-                <div className="absolute inset-0 bg-[url('https://picsum.photos/seed/luxinterior'+i+'/800/1000')] bg-cover bg-center mix-blend-overlay opacity-40 group-hover:scale-105 group-hover:opacity-50 transition-all duration-[2s] ease-out" />
-                <div className="absolute inset-0 border-[1px] border-[#E6D5B8]/5 m-4 pointer-events-none transition-all duration-700 group-hover:m-6" />
-                
-                <div className="absolute bottom-10 left-10 right-10 z-20 transform translate-y-4 group-hover:translate-y-0 transition-transform duration-700 ease-out">
-                  <p className="text-[#C5A059] text-[9px] uppercase tracking-[0.4em] mb-3 font-medium flex items-center gap-2">
-                    <span className="w-4 h-[1px] bg-[#C5A059]/50"></span>
-                    {item.category}
-                  </p>
-                  <h3 className="font-display text-2xl md:text-3xl text-[#FDFBF7] font-light">{item.title}</h3>
-                </div>
-              </motion.div>
+              <PortfolioCarousel key={item.title} project={item} delay={i * 150} />
             ))}
           </div>
         </div>
       </section>
+
+      {/* Section 8.5: Testimonials */}
+      <TestimonialsSection />
 
       {/* Section 9: Packages */}
       <section id="packages" className="py-24 md:py-40 bg-[#080808] relative overflow-hidden">
@@ -365,9 +371,9 @@ export default function HomePage() {
                 </div>
                 <h3 className="font-display text-2xl mb-4 text-[#FDFBF7] group-hover:text-[#E6D5B8] transition-colors">{pkg.title}</h3>
                 <p className="text-[13px] text-white/50 font-light leading-relaxed mb-10 flex-grow">{pkg.desc}</p>
-                <a href="#contact" className="inline-flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-[#C5A059] font-medium hover:gap-4 transition-all">
+                <button onClick={() => openPopup('popup_packages')} className="inline-flex items-center gap-3 text-[10px] uppercase tracking-[0.2em] text-[#C5A059] font-medium hover:gap-4 transition-all">
                   Request Detail <ArrowRight size={14} className="text-[#E6D5B8]" />
-                </a>
+                </button>
               </motion.div>
             ))}
           </div>
@@ -449,7 +455,7 @@ export default function HomePage() {
                 We support distant families with rigorous digital consultation, secure material approvals, transparent progress tracking, and elevated final handover documentation—ensuring total peace of mind.
               </p>
               <div className="mt-10">
-                <a href="#contact" className="border-b border-[#C5A059]/40 pb-1 text-[10px] uppercase tracking-[0.3em] text-[#C5A059] hover:text-[#E6D5B8] transition-colors">Setup Remote Call</a>
+                <button onClick={() => openPopup('popup_remote')} className="border-b border-[#C5A059]/40 pb-1 text-[10px] uppercase tracking-[0.3em] text-[#C5A059] hover:text-[#E6D5B8] transition-colors">Setup Remote Call</button>
               </div>
             </div>
           </div>
@@ -517,7 +523,8 @@ export default function HomePage() {
               <div className="space-y-12 mt-16 border-l border-[#C5A059]/30 pl-8">
                 <div>
                   <p className="text-[9px] uppercase tracking-[0.3em] text-[#C5A059] mb-3 font-medium">Primary Contact</p>
-                  <p className="text-lg md:text-xl font-light text-[#FDFBF7] mb-1">+8801XXXXXXXXX</p>
+                  <p className="text-lg md:text-xl font-light text-[#FDFBF7] mb-1">+8801314442288</p>
+                  <p className="text-lg md:text-xl font-light text-[#FDFBF7] mb-1">+8801533450316</p>
                   <p className="text-[12px] text-white/40">hello@signatureliving.studio</p>
                 </div>
                 <div>
@@ -538,51 +545,102 @@ export default function HomePage() {
               <div className="absolute top-0 right-0 p-4 border-b border-l border-[#C5A059]/10">
                  <BrandLogo mode="monogram" className="scale-50 opacity-20" />
               </div>
-              <form className="grid gap-8 mt-4" onSubmit={handleSubmit}>
+              <form className="grid gap-8 mt-4" onSubmit={handleSubmit(onSubmit)}>
                 <div className="grid gap-8 md:grid-cols-2">
-                  <div className="space-y-3">
+                  <Reveal delay={0} className="space-y-3">
                     <label className="text-[9px] uppercase tracking-[0.3em] text-[#C5A059] font-medium">Client Name</label>
-                    <input required name="name" placeholder="Full Name" className="w-full bg-[#080808] border-b border-[#C5A059]/20 pb-3 pt-2 px-0 focus:border-[#C5A059] outline-none transition-colors text-[13px] text-[#FDFBF7] placeholder:text-white/20" />
-                  </div>
-                  <div className="space-y-3">
+                    <input 
+                      {...register("name")}
+                      placeholder="Full Name" 
+                      className={`w-full bg-[#080808] border-b pb-3 pt-2 px-0 outline-none transition-colors text-[13px] text-[#FDFBF7] placeholder:text-white/20
+                        ${errors.name ? 'border-[#C0392B] animate-shake focus:border-[#C0392B]' : 'border-[#C5A059]/20 focus:border-[#C5A059]'}`} 
+                    />
+                    {errors.name && (
+                      <p className="text-[12px] text-[#C0392B] mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <span>⚠</span> {errors.name.message}
+                      </p>
+                    )}
+                  </Reveal>
+                  <Reveal delay={100} className="space-y-3">
                     <label className="text-[9px] uppercase tracking-[0.3em] text-[#C5A059] font-medium">Contact Number</label>
-                    <input required name="phone" placeholder="Phone / Whatsapp" className="w-full bg-[#080808] border-b border-[#C5A059]/20 pb-3 pt-2 px-0 focus:border-[#C5A059] outline-none transition-colors text-[13px] text-[#FDFBF7] placeholder:text-white/20" />
-                  </div>
+                    <input 
+                      {...register("phone")}
+                      placeholder="Phone / Whatsapp" 
+                      className={`w-full bg-[#080808] border-b pb-3 pt-2 px-0 outline-none transition-colors text-[13px] text-[#FDFBF7] placeholder:text-white/20
+                        ${errors.phone ? 'border-[#C0392B] animate-shake focus:border-[#C0392B]' : 'border-[#C5A059]/20 focus:border-[#C5A059]'}`} 
+                    />
+                    {errors.phone && (
+                      <p className="text-[12px] text-[#C0392B] mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <span>⚠</span> {errors.phone.message}
+                      </p>
+                    )}
+                  </Reveal>
                 </div>
                 
                 <div className="grid gap-8 md:grid-cols-2">
-                  <div className="space-y-3">
+                  <Reveal delay={200} className="space-y-3">
                     <label className="text-[9px] uppercase tracking-[0.3em] text-[#C5A059] font-medium">Project Scope</label>
-                    <select required name="project_type" className="w-full bg-[#080808] border-b border-[#C5A059]/20 pb-3 pt-2 px-0 focus:border-[#C5A059] outline-none transition-colors text-[13px] text-[#FDFBF7] appearance-none">
-                      <option className="bg-[#12100E]">Apartment Interior</option>
-                      <option className="bg-[#12100E]">Villa Architecture</option>
-                      <option className="bg-[#12100E]">Commercial Fit-Out</option>
+                    <select 
+                      {...register("project_type")}
+                      className={`w-full bg-[#080808] border-b pb-3 pt-2 px-0 outline-none transition-colors text-[13px] text-[#FDFBF7] appearance-none
+                        ${errors.project_type ? 'border-[#C0392B] animate-shake focus:border-[#C0392B]' : 'border-[#C5A059]/20 focus:border-[#C5A059]'}`}
+                    >
+                      <option value="Apartment Interior" className="bg-[#12100E]">Apartment Interior</option>
+                      <option value="Villa Architecture" className="bg-[#12100E]">Villa Architecture</option>
+                      <option value="Commercial Fit-Out" className="bg-[#12100E]">Commercial Fit-Out</option>
                     </select>
-                  </div>
-                  <div className="space-y-3">
+                    {errors.project_type && (
+                      <p className="text-[12px] text-[#C0392B] mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <span>⚠</span> {errors.project_type.message}
+                      </p>
+                    )}
+                  </Reveal>
+                  <Reveal delay={300} className="space-y-3">
                     <label className="text-[9px] uppercase tracking-[0.3em] text-[#C5A059] font-medium">Investment Tier</label>
-                    <select required name="budget_range" className="w-full bg-[#080808] border-b border-[#C5A059]/20 pb-3 pt-2 px-0 focus:border-[#C5A059] outline-none transition-colors text-[13px] text-[#FDFBF7] appearance-none">
-                      <option className="bg-[#12100E]">Premium</option>
-                      <option className="bg-[#12100E]">Luxury</option>
-                      <option className="bg-[#12100E]">Ultra-Luxury</option>
+                    <select 
+                      {...register("budget_range")}
+                      className={`w-full bg-[#080808] border-b pb-3 pt-2 px-0 outline-none transition-colors text-[13px] text-[#FDFBF7] appearance-none
+                        ${errors.budget_range ? 'border-[#C0392B] animate-shake focus:border-[#C0392B]' : 'border-[#C5A059]/20 focus:border-[#C5A059]'}`}
+                    >
+                      <option value="Premium" className="bg-[#12100E]">Premium</option>
+                      <option value="Luxury" className="bg-[#12100E]">Luxury</option>
+                      <option value="Ultra-Luxury" className="bg-[#12100E]">Ultra-Luxury</option>
                     </select>
-                  </div>
+                    {errors.budget_range && (
+                      <p className="text-[12px] text-[#C0392B] mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                        <span>⚠</span> {errors.budget_range.message}
+                      </p>
+                    )}
+                  </Reveal>
                 </div>
 
-                <div className="space-y-3">
+                <Reveal delay={400} className="space-y-3">
                   <label className="text-[9px] uppercase tracking-[0.3em] text-[#C5A059] font-medium">Project Brief</label>
-                  <textarea name="message" placeholder="Location, timeline, specific requirements..." rows={4} className="w-full bg-[#080808] border-b border-[#C5A059]/20 pb-3 pt-2 px-0 focus:border-[#C5A059] outline-none transition-colors text-[13px] text-[#FDFBF7] placeholder:text-white/20 resize-none" />
-                </div>
-                
-                <button type="submit" disabled={isSubmitting} className="btn-primary w-full group mt-6 disabled:opacity-50">
-                  {isSubmitting ? (
-                    <Loader2 className="animate-spin h-5 w-5" />
-                  ) : submitStatus === 'success' ? (
-                    "Inquiry Received"
-                  ) : (
-                    <>Submit Inquiry <ArrowRight className="ml-3 group-hover:translate-x-2 transition-transform" size={16} /></>
+                  <textarea 
+                    {...register("message")}
+                    placeholder="Location, timeline, specific requirements..." 
+                    rows={4} 
+                    className={`w-full bg-[#080808] border-b pb-3 pt-2 px-0 outline-none transition-colors text-[13px] text-[#FDFBF7] placeholder:text-white/20 resize-none
+                      ${errors.message ? 'border-[#C0392B] animate-shake focus:border-[#C0392B]' : 'border-[#C5A059]/20 focus:border-[#C5A059]'}`} 
+                  />
+                  {errors.message && (
+                    <p className="text-[12px] text-[#C0392B] mt-2 flex items-center gap-1 animate-in fade-in slide-in-from-top-1 duration-300">
+                      <span>⚠</span> {errors.message.message}
+                    </p>
                   )}
-                </button>
+                </Reveal>
+                
+                <Reveal delay={500}>
+                  <button type="submit" disabled={isSubmitting} className="btn-primary w-full group mt-6 disabled:opacity-50">
+                    {isSubmitting ? (
+                      <Loader2 className="animate-spin h-5 w-5" />
+                    ) : submitStatus === 'success' ? (
+                      "Inquiry Received"
+                    ) : (
+                      <>Submit Inquiry <ArrowRight className="ml-3 group-hover:translate-x-2 transition-transform" size={16} /></>
+                    )}
+                  </button>
+                </Reveal>
 
                 {submitStatus === 'error' && (
                   <p className="text-red-400 text-[10px] text-center uppercase tracking-widest mt-2">
@@ -608,12 +666,12 @@ export default function HomePage() {
             <BrandLogo mode="monogram" className="scale-75 opacity-50 mb-8" />
             <h2 className="font-display text-5xl md:text-8xl text-[#FDFBF7] font-light tracking-tight mb-12">Signature <span className="italic text-[#C5A059]">Living.</span></h2>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <a href="tel:+8801XXXXXXXXX" className="btn-primary">
+              <a href="tel:+8801314442288" className="btn-primary">
                 Call Studio
               </a>
-              <a href="#contact" className="btn-secondary">
+              <button onClick={() => openPopup('popup_footer')} className="btn-secondary">
                 Request Meeting
-              </a>
+              </button>
             </div>
           </motion.div>
         </div>
@@ -622,7 +680,7 @@ export default function HomePage() {
       <footer className="py-12 border-t border-[#C5A059]/10 bg-[#080808]">
         <div className="container flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="text-center md:text-left flex flex-col items-center md:items-start">
-            <BrandLogo mode="full" className="scale-50 origin-center md:origin-left opacity-60 mb-2" />
+            <BrandLogo mode="stacked" className="h-[120px] w-[160px] origin-center md:origin-left opacity-80 mb-6" />
             <p className="text-[8px] text-white/30 uppercase tracking-[0.4em] font-medium">DHAKA :: STUDIO HQ</p>
           </div>
           
@@ -637,6 +695,16 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+
+      {/* Sticky Bottom Floating Button */}
+      <button 
+        onClick={() => openPopup('popup_sticky')}
+        className="fixed bottom-6 right-6 z-40 bg-[#C5A059] text-[#080808] px-6 py-4 shadow-2xl hover:bg-[#E6D5B8] hover:-translate-y-1 transition-all duration-300 flex items-center gap-2 group md:hidden"
+      >
+        <span className="text-[10px] uppercase tracking-widest font-bold">Book Consultation</span>
+        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+      </button>
+
     </div>
   );
 }
