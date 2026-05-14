@@ -164,32 +164,38 @@ select:focus {
   color: #437a22;
 }
 
-/* ─── VALID FOCUS ─── */
-input.is-valid:focus,
-input[type="tel"].is-valid:focus {
-  border-color: #437a22;
+/* ─── VALID STATE ─── */
+.is-valid {
+  border-color: #437a22 !important;
+}
+
+.is-valid:focus {
+  border-color: #437a22 !important;
   box-shadow:
     0 0 0 var(--focus-ring-spread) rgba(67, 122, 34, 0.18),
-    0 1px 4px rgba(67, 122, 34, 0.1);
-  background-color: rgba(67, 122, 34, 0.03);
+    0 1px 4px rgba(67, 122, 34, 0.1) !important;
+  background-color: rgba(67, 122, 34, 0.03) !important;
 }
 
-/* ─── INVALID FOCUS ─── */
-input.is-invalid {
-  border-color: #a12c7b;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23a12c7b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 14px center;
-  padding-right: 44px;
+/* ─── INVALID STATE ─── */
+.is-invalid {
+  border-color: #a12c7b !important;
 }
 
-input.is-invalid:focus,
-input[type="tel"].is-invalid:focus {
-  border-color: #a12c7b;
+input.is-invalid,
+select.is-invalid {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23a12c7b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cline x1='12' y1='8' x2='12' y2='12'/%3E%3Cline x1='12' y1='16' x2='12.01' y2='16'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  padding-right: 44px !important;
+}
+
+.is-invalid:focus {
+  border-color: #a12c7b !important;
   box-shadow:
     0 0 0 var(--focus-ring-spread) rgba(161, 44, 123, 0.16),
-    0 1px 4px rgba(161, 44, 123, 0.1);
-  background-color: rgba(161, 44, 123, 0.025);
+    0 1px 4px rgba(161, 44, 123, 0.1) !important;
+  background-color: rgba(161, 44, 123, 0.025) !important;
 }
 
 /* ─── PHONE WRAPPER ─── */

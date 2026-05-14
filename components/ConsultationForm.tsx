@@ -154,32 +154,72 @@ export default function ConsultationForm() {
         </div>
 
         {/* Row 1: Name + Phone */}
-        <div className={`form-group field-name ${validation.name.touched ? (validation.name.valid ? 'is-valid' : 'is-invalid') : ''}`}>
+        <div className="form-group field-name">
           <label htmlFor="contact_name">
             Full Name <span className="required-star" aria-hidden="true">*</span>
           </label>
-          <input type="text" id="contact_name" value={formData.name} onChange={handleChange} required placeholder="e.g. Rahim Hossain" />
+          <input 
+            type="text" 
+            id="contact_name" 
+            value={formData.name} 
+            onChange={handleChange} 
+            required 
+            placeholder="e.g. Rahim Hossain"
+            className={validation.name.touched ? (validation.name.valid ? 'is-valid' : 'is-invalid') : ''}
+          />
+          {validation.name.touched && validation.name.error && (
+            <p className="field-error visible" role="alert">{validation.name.error}</p>
+          )}
         </div>
 
-        <div className={`form-group field-phone ${validation.phone.touched ? (validation.phone.valid ? 'is-valid' : 'is-invalid') : ''}`}>
+        <div className="form-group field-phone">
           <label htmlFor="contact_phone">
             Phone Number (WhatsApp) <span className="required-star" aria-hidden="true">*</span>
           </label>
-          <input type="tel" id="contact_phone" value={formData.phone} onChange={handleChange} required placeholder="01XXX-XXXXXX" inputMode="numeric" />
+          <input 
+            type="tel" 
+            id="contact_phone" 
+            value={formData.phone} 
+            onChange={handleChange} 
+            required 
+            placeholder="01XXX-XXXXXX" 
+            inputMode="numeric"
+            className={validation.phone.touched ? (validation.phone.valid ? 'is-valid' : 'is-invalid') : ''}
+          />
+          {validation.phone.touched && validation.phone.error && (
+            <p className="field-error visible" role="alert">{validation.phone.error}</p>
+          )}
         </div>
 
         {/* Row 2: Email + Location */}
-        <div className={`form-group field-email ${validation.email.touched ? (validation.email.valid ? 'is-valid' : 'is-invalid') : ''}`}>
+        <div className="form-group field-email">
           <label htmlFor="contact_email">Email Address</label>
-          <input type="email" id="contact_email" value={formData.email} onChange={handleChange} placeholder="e.g. rahim@example.com" />
+          <input 
+            type="email" 
+            id="contact_email" 
+            value={formData.email} 
+            onChange={handleChange} 
+            placeholder="e.g. rahim@example.com"
+            className={validation.email.touched ? (validation.email.valid ? 'is-valid' : (formData.email ? 'is-invalid' : '')) : ''}
+          />
+          {validation.email.touched && validation.email.error && (
+            <p className="field-error visible" role="alert">{validation.email.error}</p>
+          )}
         </div>
 
         <div className="form-group field-project">
           <label htmlFor="project_type">Project Type <span className="required-star" aria-hidden="true">*</span></label>
-          <select id="project_type" required value={formData.project_type} onChange={(e) => {
-            setFormData(prev => ({ ...prev, project_type: e.target.value }));
-            setValidation(prev => ({ ...prev, project: { error: '', touched: true, valid: true } }));
-          }}>
+          <select 
+            id="project_type" 
+            required 
+            value={formData.project_type} 
+            onChange={(e) => {
+              setFormData(prev => ({ ...prev, project_type: e.target.value }));
+              const err = validateProject(e.target.value);
+              setValidation(prev => ({ ...prev, project: { error: err, touched: true, valid: err === '' } }));
+            }}
+            className={validation.project.touched ? (validation.project.valid ? 'is-valid' : 'is-invalid') : ''}
+          >
             <option value="" disabled>Select Project Type</option>
             <option value="apartment_interior">Apartment Interior</option>
             <option value="villa_interior">Villa / Duplex Interior</option>
@@ -191,15 +231,25 @@ export default function ConsultationForm() {
             <option value="nri_remote">NRI / Remote Project</option>
             <option value="other">Other</option>
           </select>
+          {validation.project.touched && validation.project.error && (
+            <p className="field-error visible" role="alert">{validation.project.error}</p>
+          )}
         </div>
 
         {/* Row 3: Budget + Timeline */}
         <div className="form-group field-budget">
           <label htmlFor="budget_direction">Budget Direction <span className="required-star" aria-hidden="true">*</span></label>
-          <select id="budget_direction" required value={formData.budget_direction} onChange={(e) => {
-            setFormData(prev => ({ ...prev, budget_direction: e.target.value }));
-            setValidation(prev => ({ ...prev, budget: { error: '', touched: true, valid: true } }));
-          }}>
+          <select 
+            id="budget_direction" 
+            required 
+            value={formData.budget_direction} 
+            onChange={(e) => {
+              setFormData(prev => ({ ...prev, budget_direction: e.target.value }));
+              const err = validateBudget(e.target.value);
+              setValidation(prev => ({ ...prev, budget: { error: err, touched: true, valid: err === '' } }));
+            }}
+            className={validation.budget.touched ? (validation.budget.valid ? 'is-valid' : 'is-invalid') : ''}
+          >
             <option value="" disabled>Select Budget Direction</option>
             <option value="below_5l">Below ৳5L</option>
             <option value="5l_to_10l">৳5L–৳10L</option>
@@ -207,6 +257,9 @@ export default function ConsultationForm() {
             <option value="20l_to_40l">৳20L–৳40L</option>
             <option value="40l_plus">৳40L+</option>
           </select>
+          {validation.budget.touched && validation.budget.error && (
+            <p className="field-error visible" role="alert">{validation.budget.error}</p>
+          )}
         </div>
 
         <div className="form-group field-timeline">
@@ -224,8 +277,24 @@ export default function ConsultationForm() {
         <div className="form-group field-message col-span-1 md:col-span-2">
           <label htmlFor="contact_message">Project Brief</label>
           <div className="textarea-wrapper">
-            <textarea id="contact_message" value={formData.message} onChange={handleChange} rows={4} placeholder="Tell us about your space, rooms, location, timeline or specific requirements."></textarea>
+            <textarea 
+              id="contact_message" 
+              value={formData.message} 
+              onChange={handleChange} 
+              rows={4} 
+              placeholder="Tell us about your space, rooms, location, timeline or specific requirements."
+              className={validation.message.touched ? (validation.message.valid ? 'is-valid' : 'is-invalid') : ''}
+            ></textarea>
+            <div className="char-progress-track">
+              <div 
+                className={`char-progress-fill ${formData.message.length > SOFT_LIMIT ? 'state-over' : (formData.message.length > SOFT_LIMIT * WARN_PCT ? 'state-warn' : '')}`}
+                style={{ width: `${Math.min((formData.message.length / SOFT_LIMIT) * 100, 100)}%` }}
+              ></div>
+            </div>
           </div>
+          {validation.message.touched && validation.message.error && (
+            <p className="field-error visible" role="alert">{validation.message.error}</p>
+          )}
         </div>
 
         <div className="field-submit col-span-1 md:col-span-2 mt-4 text-center items-center justify-center pt-6 border-t border-white/10">
